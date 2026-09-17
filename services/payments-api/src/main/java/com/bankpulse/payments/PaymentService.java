@@ -6,11 +6,15 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PaymentService {
+    private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
+
     private final PaymentRepository payments;
     private final OutboxRepository outbox;
     private final ObjectMapper objectMapper;
@@ -23,16 +27,15 @@ public class PaymentService {
 
     @Transactional
     public Payment create(String idempotencyKey, PaymentController.PaymentRequest request) {
-        String traceKey = withCorrelationTrace(idempotencyKey);
-        return payments.findByIdempotencyKey(traceKey).orElseGet(() -> persist(traceKey, request));
-    }
-
-    // Se agrega un sufijo de correlacion para facilitar el rastreo de cada intento
-    // en los logs distribuidos. NOTA: esto es un error real -- cambia la clave
-    // efectiva de idempotencia en cada llamada y por lo tanto rompe la
-    // deduplicacion (ver Deber 1, PR #2: falso verde).
-    private String withCorrelationTrace(String idempotencyKey) {
-        return idempotencyKey + "-" + UUID.randomUUID();
+        // Correccion (Deber 1, PR #2): la Idempotency-Key del cliente se usa TAL CUAL
+        // para buscar y persistir. El intento anterior le agregaba un sufijo de
+        // correlacion antes de usarla, lo que rompia la deduplicacion (dos
+        // solicitudes con la misma clave terminaban comparando/guardando claves
+        // distintas). La traza de correlacion ahora es solo para logging y no
+        // participa en la clave de negocio.
+        String traceId = UUID.randomUUID().toString();
+        log.info("payment.create idempotencyKey={} traceId={}", idempotencyKey, traceId);
+        return payments.findByIdempotencyKey(idempotencyKey).orElseGet(() -> persist(idempotencyKey, request));
     }
 
     private Payment persist(String idempotencyKey, PaymentController.PaymentRequest request) {
