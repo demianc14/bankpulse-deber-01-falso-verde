@@ -64,36 +64,87 @@ contenedores sigan saludables.
 
 ## 5. PR exitoso 🟢
 
-- PR: *(se agrega el enlace al mergear)* — refuerza el Release Gate
-  (`ci.yml` con pasos `Release Gate PASS` / bloqueo explícito) y agrega
-  este documento.
-- Evidencia: ejecución de `BankPulse CI` en verde sobre el PR.
+- **PR #1 — [feat(release-gate): formalizar Release Gate + docs/deber-01.md](https://github.com/demianc14/bankpulse-deber-01-falso-verde/pull/1)**
+  (mergeado a `main` en el commit `2b9a2e1`).
+- Refuerza el Release Gate en `ci.yml` (pasos `Business Test - Release
+  Gate` y `Release Gate PASS`) y agrega este documento.
+- Ejecución de `BankPulse CI` sobre el PR:
+  [run #4 — 1m 23s, ✅](https://github.com/demianc14/bankpulse-deber-01-falso-verde/actions/runs/35175408606) —
+  build de la stack real, Business Test en verde, `RELEASE GATE: PASS`.
 
 ## 6. PR con tecnología 🟢 y comportamiento de negocio 🔴
 
-- PR: *(se agrega el enlace)* — rompe intencionalmente la
-  verificación de idempotencia en `PaymentService`.
-- `docker compose ps` de esa ejecución: los 5 servicios siguen
-  `healthy`.
-- El paso `Business Test — Release Gate` falla: dos `id` de pago
-  distintos para la misma `X-Idempotency-Key`.
+- **PR #2 — [feat(payments): agregar traza de correlacion al procesar un pago](https://github.com/demianc14/bankpulse-deber-01-falso-verde/pull/2)**
+  (mergeado a `main` en el commit `feb966b`, luego de la corrección).
+- Commit que provoca el falso verde:
+  [`5b8ecd5`](https://github.com/demianc14/bankpulse-deber-01-falso-verde/commit/5b8ecd5) —
+  se agrega un sufijo de correlación a la `Idempotency-Key` efectiva
+  usada para buscar/guardar el pago (pensado "solo" para trazabilidad
+  en logs).
+- Ejecución de `BankPulse CI` sobre ese commit:
+  [run #6 — Failure, 1m 36s](https://github.com/demianc14/bankpulse-deber-01-falso-verde/actions/runs/35175625527).
+- `docker compose ps` en esa misma ejecución — los 5 servicios siguen
+  healthy (infraestructura 🟢):
+
+  ```
+  bankpulse-platform-lab-audit-api-1      Up 17 seconds (healthy)
+  bankpulse-platform-lab-console-1        Up 1 second
+  bankpulse-platform-lab-mariadb-1        Up 23 seconds (healthy)
+  bankpulse-platform-lab-mongo-1          Up 23 seconds (healthy)
+  bankpulse-platform-lab-payments-api-1   Up 11 seconds (healthy)
+  ```
 
 ## 7. Evidencia del bloqueo
 
-*(captura del log de Actions con el job en rojo y el mensaje
-`RELEASE GATE: BLOCK`, y captura de `docker compose ps` mostrando los
-contenedores healthy en la misma ejecución — se agregan al mergear el
-PR de corrección)*
+Log del paso `Business Test - Release Gate` en el
+[run #6](https://github.com/demianc14/bankpulse-deber-01-falso-verde/actions/runs/35175625527):
+
+```
+[3/4] Reintentando la misma solicitud (business test: no debe duplicarse el pago)
+  payment id (request #1): 16d3dd13-c15c-43d9-a0eb-e8c0526ede7d
+  payment id (request #2): b2a515af-0966-40ce-b382-5a97f09d4150
+BUSINESS TEST FAILED: la misma Idempotency-Key produjo dos pagos distintos (posible cobro duplicado).
+Error: Process completed with exit code 1.
+```
+
+Y el paso `Capture evidence on failure` del mismo run confirma el
+"falso verde": infraestructura arriba, negocio roto —
+
+```
+RELEASE GATE: BLOCK. Tecnologia sigue UP, pero el business test detecto una perdida de negocio (falso verde).
+```
+
+seguido de la salida de `docker compose ps` citada en la sección 6
+(los 5 contenedores healthy en la misma ejecución que bloqueó el PR).
 
 ## 8. Diagnóstico y corrección
 
-*(se documenta la causa exacta del "falso verde" introducido y el
-commit de corrección)*
+**Diagnóstico:** `PaymentService.create()` construía una
+`traceKey = idempotencyKey + "-" + UUID.randomUUID()` y usaba esa
+clave (no la `Idempotency-Key` original del cliente) tanto para buscar
+el pago existente (`findByIdempotencyKey`) como para persistir uno
+nuevo. Como el sufijo aleatorio cambia en cada llamada, el segundo
+request con la **misma** `Idempotency-Key` del cliente nunca
+encontraba el pago creado por el primero, y `persist()` insertaba un
+segundo registro válido — dos `id` de pago y dos eventos
+`PAYMENT_CREATED` para una sola intención de pago del cliente.
+
+**Corrección:**
+[`2d45a84` — fix(payments): no mutar la Idempotency-Key al agregar traza de correlacion](https://github.com/demianc14/bankpulse-deber-01-falso-verde/commit/2d45a84).
+La `Idempotency-Key` del cliente se usa sin modificar para buscar y
+guardar el pago; el identificador de traza se sigue generando, pero
+solo se usa en un `log.info(...)` y ya no participa de la clave de
+negocio.
 
 ## 9. Ejecución final 🟢
 
-*(enlace a la ejecución de `BankPulse CI` posterior a la corrección,
-en verde, sobre la misma rama)*
+Ejecución de `BankPulse CI` sobre el commit de corrección, en el mismo
+PR #2:
+[run #7 — 1m 35s, ✅](https://github.com/demianc14/bankpulse-deber-01-falso-verde/actions/runs/35175797618).
+El Business Test vuelve a pasar (mismo `id` de pago en ambas
+respuestas), `RELEASE GATE: PASS`, y el PR #2 se mergeó a `main` en el
+commit
+[`feb966b`](https://github.com/demianc14/bankpulse-deber-01-falso-verde/commit/feb966b).
 
 ## Reproducir desde un Codespace limpio
 
