@@ -23,7 +23,8 @@ jobs:
 
       - name: Release Gate PASS
         if: success()
-        run: echo "RELEASE GATE: PASS. Tecnologia UP y comportamiento de negocio correcto (sin pago duplicado)."
+        run: |
+          echo "RELEASE GATE: PASS. Tecnologia UP y comportamiento de negocio correcto (sin pago duplicado)."
 
       - name: Capture evidence on failure
         if: failure()
