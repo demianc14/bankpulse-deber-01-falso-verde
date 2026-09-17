@@ -14,13 +14,24 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
       - name: Build and start the real stack
         run: docker compose up --build -d --wait --wait-timeout 180
-      - name: Contract and idempotency smoke test
+
+      - name: Business Test — Release Gate (capacidad: procesar un pago una sola vez)
         run: bash scripts/smoke.sh
+
+      - name: Release Gate PASS
+        if: success()
+        run: echo "RELEASE GATE: PASS. Tecnologia UP y comportamiento de negocio correcto (sin pago duplicado)."
+
       - name: Capture evidence on failure
         if: failure()
-        run: docker compose ps && docker compose logs --tail=250
+        run: |
+          echo "RELEASE GATE: BLOCK. Tecnologia sigue UP, pero el business test detecto una perdida de negocio (falso verde)."
+          docker compose ps
+          docker compose logs --tail=250
+
       - name: Stop stack
         if: always()
         run: docker compose down -v
