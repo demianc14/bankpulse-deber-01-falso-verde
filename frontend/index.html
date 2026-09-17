@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Laboratorio real de platform engineering con GitHub, Docker, MongoDB y MariaDB">
+  <title>BankPulse · Platform Engineering Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img class="institution-logo" src="assets/usfq-logo.png" alt="USFQ"><div class="brand-copy"><strong>Bank<span>Pulse</span></strong><small>PLATFORM ENGINEERING LAB · USFQ</small></div></div>
+    <div class="environment"><span class="live-dot"></span> local-production <span id="clock">--:--:--</span></div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <span class="eyebrow">REAL SYSTEMS · SAFE FAILURE LAB</span>
+        <h1>Control plane para una plataforma bancaria distribuida</h1>
+        <p>Opera servicios reales, demuestra consistencia eventual y conecta evidencia de GitHub y Docker Hub. Cada misión se valida con datos del sistema.</p>
+      </div>
+      <div class="score-card"><span>READINESS SCORE</span><strong id="score">0%</strong><div class="progress"><i id="progressBar"></i></div><small id="rank">Observer</small></div>
+    </section>
+
+    <section class="status-grid" aria-label="Estado de la plataforma">
+      <article class="status-card" id="paymentsStatus"><div class="status-head"><span>payments-api</span><i></i></div><strong id="paymentsHealth">CHECKING</strong><small>Java 21 · MariaDB</small></article>
+      <article class="status-card" id="auditStatus"><div class="status-head"><span>audit-api</span><i></i></div><strong id="auditHealth">CHECKING</strong><small>Java 21 · MongoDB</small></article>
+      <article class="status-card" id="outboxStatus"><div class="status-head"><span>transactional-outbox</span><i></i></div><strong><span id="pendingCount">—</span> pending</strong><small id="outboxHint">Esperando telemetría</small></article>
+      <article class="status-card" id="dataStatus"><div class="status-head"><span>data plane</span><i></i></div><strong><span id="paymentCount">0</span> / <span id="auditCount">0</span></strong><small>pagos MariaDB / eventos MongoDB</small></article>
+    </section>
+
+    <div class="layout">
+      <section class="workspace">
+        <article class="panel create-panel">
+          <div class="panel-title"><div><span class="eyebrow">COMMAND DESK</span><h2>Crear pago idempotente</h2></div><span class="badge">LIVE API</span></div>
+          <form id="paymentForm">
+            <label>Cuenta de laboratorio<input id="account" value="EC-LAB-4242" maxlength="80" required></label>
+            <label>Monto<input id="amount" type="number" value="27.50" min="0.01" step="0.01" required></label>
+            <label>Moneda<input id="currency" value="USD" pattern="[A-Za-z]{3}" maxlength="3" required></label>
+            <button type="submit" id="createPayment">Enviar pago</button>
+          </form>
+          <div class="key-row"><span>Idempotency key</span><code id="idempotencyKey">se genera por solicitud</code><button class="text-btn" id="testIdempotency" type="button">Probar duplicado seguro</button></div>
+          <div class="notice" id="requestResult" role="status">La API confirmará el pago en MariaDB antes de publicar el evento.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-title"><div><span class="eyebrow">POLYGLOT PERSISTENCE</span><h2>Correlación de datos</h2></div><button class="ghost" id="refreshData" type="button">Actualizar</button></div>
+          <div class="split">
+            <div><h3>MariaDB · payments</h3><div class="table-wrap"><table><thead><tr><th>Pago</th><th>Cuenta</th><th>Monto</th><th>Estado</th></tr></thead><tbody id="paymentsTable"><tr><td colspan="4" class="empty">Sin pagos</td></tr></tbody></table></div></div>
+            <div><h3>MongoDB · audit_events</h3><div class="event-stream" id="auditStream"><div class="empty">Sin eventos</div></div></div>
+          </div>
+        </article>
+
+        <article class="panel chaos-panel">
+          <div class="panel-title"><div><span class="eyebrow danger-text">CONTROLLED CHAOS</span><h2>Caída parcial de MongoDB</h2></div><span class="badge danger">REVERSIBLE</span></div>
+          <p>Detén la auditoría, crea un pago y observa cómo MariaDB conserva la transacción mientras el outbox acumula el evento. Después recupera el servicio y verifica el drenaje.</p>
+          <div class="terminal"><div class="terminal-head"><span></span><span></span><span></span><b>operator@bankpulse</b></div><button class="command" data-copy="docker compose stop mongo audit-api"><span>$</span><code>docker compose stop mongo audit-api</code><em>Copiar</em></button><button class="command" data-copy="docker compose up -d --wait mongo audit-api"><span>$</span><code>docker compose up -d --wait mongo audit-api</code><em>Copiar</em></button><button class="command" data-copy="docker compose logs -f payments-api audit-api"><span>$</span><code>docker compose logs -f payments-api audit-api</code><em>Copiar</em></button></div>
+          <div class="drill-state"><span id="chaosState">Esperando una interrupción controlada</span><div class="mini-progress"><i id="chaosProgress"></i></div></div>
+        </article>
+
+        <article class="panel integrations">
+          <div class="panel-title"><div><span class="eyebrow">SUPPLY CHAIN EVIDENCE</span><h2>GitHub y Docker Hub</h2></div><span class="badge">PUBLIC METADATA</span></div>
+          <p class="muted">No pegues tokens en esta consola. La consulta usa únicamente metadatos públicos; los repositorios privados se gestionan con secretos de GitHub Actions.</p>
+          <div class="integration-grid">
+            <form id="githubForm" class="integration-card"><div class="integration-name"><span class="icon">GH</span><div><strong>GitHub Actions</strong><small>owner/repository</small></div></div><input id="githubRepo" placeholder="organizacion/bankpulse-lab" autocomplete="off"><button type="submit">Conectar</button><div id="githubResult" class="integration-result">Sin repositorio conectado</div></form>
+            <form id="dockerForm" class="integration-card"><div class="integration-name"><span class="icon docker">DH</span><div><strong>Docker Hub</strong><small>namespace</small></div></div><input id="dockerNamespace" placeholder="usuario-dockerhub" autocomplete="off"><button type="submit">Consultar tags</button><div id="dockerResult" class="integration-result">Sin registro conectado</div></form>
+          </div>
+        </article>
+      </section>
+
+      <aside class="mission-panel">
+        <div class="mission-head"><span class="eyebrow">OPERATOR TRACK</span><h2>Misiones</h2><small>Validación basada en evidencia</small></div>
+        <ol id="missions">
+          <li data-mission="1"><span class="mission-number">01</span><div><strong>Production readiness</strong><small>Ambas APIs saludables</small></div><b>20 XP</b></li>
+          <li data-mission="2"><span class="mission-number">02</span><div><strong>Persistencia políglota</strong><small>Pago y auditoría correlacionados</small></div><b>20 XP</b></li>
+          <li data-mission="3"><span class="mission-number">03</span><div><strong>Idempotencia</strong><small>Reintento sin duplicación</small></div><b>20 XP</b></li>
+          <li data-mission="4"><span class="mission-number">04</span><div><strong>Failure recovery</strong><small>Outbox pendiente y drenado</small></div><b>25 XP</b></li>
+          <li data-mission="5"><span class="mission-number">05</span><div><strong>Software supply chain</strong><small>CI y artefactos publicados</small></div><b>15 XP</b></li>
+        </ol>
+        <div class="evidence-log"><h3>Evidence log</h3><div id="evidenceLog"><p><time>--:--:--</time> Esperando telemetría real…</p></div></div>
+        <button class="ghost full" id="resetProgress" type="button">Reiniciar puntuación</button>
+      </aside>
+    </div>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>

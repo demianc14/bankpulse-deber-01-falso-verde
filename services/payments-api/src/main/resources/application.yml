@@ -1,0 +1,26 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: payments-api
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:mariadb://localhost:3306/bankpulse}
+    username: ${SPRING_DATASOURCE_USERNAME:bankpulse}
+    password: ${SPRING_DATASOURCE_PASSWORD:bankpulse_local}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 3000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.jdbc.time_zone: UTC
+management:
+  endpoints.web.exposure.include: health,info,metrics,prometheus
+  endpoint.health.probes.enabled: true
+audit:
+  base-url: ${AUDIT_BASE_URL:http://localhost:8082}
+outbox:
+  fixed-delay-ms: ${OUTBOX_FIXED_DELAY_MS:2000}

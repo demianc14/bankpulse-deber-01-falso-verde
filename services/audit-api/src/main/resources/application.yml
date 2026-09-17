@@ -1,0 +1,12 @@
+server:
+  port: 8082
+spring:
+  application:
+    name: audit-api
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://root:mongo_local@localhost:27017/audit?authSource=admin}
+      auto-index-creation: true
+management:
+  endpoints.web.exposure.include: health,info,metrics,prometheus
+  endpoint.health.probes.enabled: true

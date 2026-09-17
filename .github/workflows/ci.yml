@@ -1,0 +1,26 @@
+name: BankPulse CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start the real stack
+        run: docker compose up --build -d --wait --wait-timeout 180
+      - name: Contract and idempotency smoke test
+        run: bash scripts/smoke.sh
+      - name: Capture evidence on failure
+        if: failure()
+        run: docker compose ps && docker compose logs --tail=250
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
