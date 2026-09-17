@@ -18,7 +18,7 @@ jobs:
       - name: Build and start the real stack
         run: docker compose up --build -d --wait --wait-timeout 180
 
-      - name: Business Test — Release Gate (capacidad: procesar un pago una sola vez)
+      - name: "Business Test - Release Gate (capacidad: procesar un pago una sola vez)"
         run: bash scripts/smoke.sh
 
       - name: Release Gate PASS
