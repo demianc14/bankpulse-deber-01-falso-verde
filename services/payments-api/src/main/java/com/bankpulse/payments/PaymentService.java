@@ -23,7 +23,16 @@ public class PaymentService {
 
     @Transactional
     public Payment create(String idempotencyKey, PaymentController.PaymentRequest request) {
-        return payments.findByIdempotencyKey(idempotencyKey).orElseGet(() -> persist(idempotencyKey, request));
+        String traceKey = withCorrelationTrace(idempotencyKey);
+        return payments.findByIdempotencyKey(traceKey).orElseGet(() -> persist(traceKey, request));
+    }
+
+    // Se agrega un sufijo de correlacion para facilitar el rastreo de cada intento
+    // en los logs distribuidos. NOTA: esto es un error real -- cambia la clave
+    // efectiva de idempotencia en cada llamada y por lo tanto rompe la
+    // deduplicacion (ver Deber 1, PR #2: falso verde).
+    private String withCorrelationTrace(String idempotencyKey) {
+        return idempotencyKey + "-" + UUID.randomUUID();
     }
 
     private Payment persist(String idempotencyKey, PaymentController.PaymentRequest request) {
